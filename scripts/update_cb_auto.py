@@ -1,15 +1,24 @@
 import requests
 import re
+import os
 
 OUTPUT_FILE = "playlist.m3u"
 COOKIE_FILE = "cookies.txt"
 
-# Load cookies from file
+# Check cookie file exists
+if not os.path.exists(COOKIE_FILE):
+    print("cookies.txt not found")
+    with open(OUTPUT_FILE, "w") as f:
+        f.write("#EXTM3U\n")
+    exit(0)
+
+# Load cookies safely
 cookies = {}
-with open(COOKIE_FILE, "r", encoding="utf-8") as f:
+with open(COOKIE_FILE, "r", encoding="utf-8", errors="ignore") as f:
     for line in f:
+        line = line.strip()
         if "=" in line:
-            k, v = line.strip().split("=", 1)
+            k, v = line.split("=", 1)
             cookies[k] = v
 
 HEADERS = {
@@ -19,34 +28,30 @@ HEADERS = {
 
 playlist = ["#EXTM3U\n"]
 
-# Pages to scan for live couples
 SCAN_PAGES = [
     "https://chaturbate.com/couples/?page=1",
-    "https://chaturbate.com/couples/?page=2",
-    "https://chaturbate.com/couples/?page=3"
+    "https://chaturbate.com/couples/?page=2"
 ]
 
 found_models = set()
 
-# STEP 1: Collect model names
+# Step 1: scrape couple pages
 for page in SCAN_PAGES:
     try:
-        r = requests.get(page, headers=HEADERS, cookies=cookies, timeout=15)
+        r = requests.get(page, headers=HEADERS, cookies=cookies, timeout=20)
         if r.status_code != 200:
             continue
 
         models = re.findall(r'room="([^"]+)"', r.text)
-        for m in models:
-            found_models.add(m)
+        found_models.update(models)
+    except Exception as e:
+        print("Scan error:", e)
 
-    except Exception:
-        continue
-
-# STEP 2: Check live status and build stream
+# Step 2: check live status
 for model in sorted(found_models):
     try:
         api = f"https://chaturbate.com/api/chatvideocontext/{model}/"
-        r = requests.get(api, headers=HEADERS, cookies=cookies, timeout=15)
+        r = requests.get(api, headers=HEADERS, cookies=cookies, timeout=20)
 
         if r.status_code != 200:
             continue
@@ -70,10 +75,9 @@ for model in sorted(found_models):
         playlist.append(
             f'#EXTINF:-1 group-title="Chaturbate Couple",{model}\n{m3u8}\n'
         )
+    except Exception as e:
+        print("Model error:", model, e)
 
-    except Exception:
-        continue
-
-# Write playlist
+# Write playlist (always)
 with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
     f.writelines(playlist)
