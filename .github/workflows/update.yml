@@ -1,4 +1,4 @@
-name: Auto Update Chaturbate Playlist
+name: Auto Update Chaturbate Couple Playlist
 
 on:
   schedule:
@@ -18,7 +18,7 @@ jobs:
 
       - run: pip install requests
 
-      - run: python scripts/update_cb.py
+      - run: python scripts/update_cb_auto.py
 
       - run: |
           git config user.name "github-actions"
