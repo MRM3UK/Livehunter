@@ -10,8 +10,8 @@ HEADERS = {
 
 playlist = ["#EXTM3U\n"]
 
-with open(MODELS_FILE) as f:
-    models = [m.strip() for m in f if m.strip()]
+with open(MODELS_FILE, "r", encoding="utf-8") as f:
+    models = [line.strip() for line in f if line.strip()]
 
 for model in models:
     try:
@@ -23,14 +23,20 @@ for model in models:
 
         data = r.json()
 
+        # Must be LIVE
         if not data.get("is_broadcasting"):
             continue
 
-        if not data.get("is_couple"):
+        # Must be COUPLE (MF)
+        if data.get("broadcast_gender") != "MF":
             continue
 
-        edge = data["edge_server"]
-        stream = data["stream_name"]
+        edge = data.get("edge_server")
+        stream = data.get("stream_name")
+
+        if not edge or not stream:
+            continue
+
         m3u8 = f"https://{edge}.live.mmcdn.com/live-hls/amlst:{stream}/playlist.m3u8"
 
         playlist.append(
@@ -38,7 +44,7 @@ for model in models:
         )
 
     except Exception:
-        pass
+        continue
 
-with open(OUTPUT_FILE, "w") as f:
+with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
     f.writelines(playlist)
